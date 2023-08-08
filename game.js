@@ -20,6 +20,7 @@ var MainMenu = new Phaser.Class({
 });
 
 // Game Over Scene
+// Game Over Scene
 var GameOver = new Phaser.Class({
 
     Extends: Phaser.Scene,
@@ -38,8 +39,34 @@ var GameOver = new Phaser.Class({
         var retryButton = this.add.text(100, 300, 'Retry', { fontSize: '32px', fill: '#FFF' });
         retryButton.setInteractive();
         retryButton.on('pointerdown', () => this.scene.start('game'));
+
+        var submitScoreButton = this.add.text(100, 400, 'Submit Score', { fontSize: '32px', fill: '#FFF' });
+        submitScoreButton.setInteractive();
+        submitScoreButton.on('pointerdown', () => this.submitScore());
+    },
+
+    submitScore: function ()
+    {
+        var score = this.sys.game.score;
+        var url = 'https://www.ur-point.com/requests.php?f=ur_vault&s=' + score.toString() + '&gameid=1';
+        
+        console.log(url);
+
+
+        fetch({
+            url: url, // Replace with your actual URL
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        this.load.once('complete', function () {
+            console.log('Score submitted successfully!');
+        });
+
+        this.load.start();
     }
 });
+
 
 // Game Scene
 var Game = new Phaser.Class({
@@ -56,7 +83,7 @@ var Game = new Phaser.Class({
     create: function ()
     {
         // Create a 4x4 grid of squares
-        this.size = 150; // size of each square
+        this.size = 130; // size of each square
         this.padding = 10; // padding between squares
         this.offset = this.size + this.padding; // total offset between the start of each square
 
@@ -85,36 +112,6 @@ var Game = new Phaser.Class({
 
         // Add keyboard controls
         this.cursors = this.input.keyboard.createCursorKeys();
-
-        // Add swipe controls
-        this.input.on('pointerdown', function (pointer) {
-            this.startX = pointer.x;
-            this.startY = pointer.y;
-        }, this);
-
-        this.input.on('pointerup', function (pointer) {
-            var endX = pointer.x;
-            var endY = pointer.y;
-
-            var dx = endX - this.startX;
-            var dy = endY - this.startY;
-
-            if (Math.abs(dx) > Math.abs(dy)) {
-                // Horizontal swipe
-                if (dx > 0) {
-                    this.moveTiles('right');
-                } else {
-                    this.moveTiles('left');
-                }
-            } else {
-                // Vertical swipe
-                if (dy > 0) {
-                    this.moveTiles('down');
-                } else {
-                    this.moveTiles('up');
-                }
-            }
-        }, this);
     },
 
     drawGrid: function ()
@@ -141,7 +138,7 @@ var Game = new Phaser.Class({
 
                 // Draw the number
                 if (this.grid[i][j] !== 0) {
-                    this.textGroup.add(this.add.text(x, y, this.grid[i][j], { fontSize: '32px', fill: '#FFF' }));
+                    this.textGroup.add(this.add.text(x, y, this.grid[i][j], { fontSize: '32px', fill: '#000' }));
                 }
             }
         }
@@ -186,47 +183,47 @@ var Game = new Phaser.Class({
     {
         var dx = (direction === 'right') - (direction === 'left');
         var dy = (direction === 'down') - (direction === 'up');
-    
+
         var startI = (dy === 1) ? 3 : 0;
         var startJ = (dx === 1) ? 3 : 0;
         var endI = (dy === 1) ? -1 : 4;
         var endJ = (dx === 1) ? -1 : 4;
-        var stepI = -dy;
-        var stepJ = -dx;
-    
+        var stepI = dy !== 0 ? -dy : 1;
+        var stepJ = dx !== 0 ? -dx : 1;
+
         var moved = false;
         var merged = [];
-    
+
         for (var i = 0; i < 4; i++) {
             merged[i] = [];
             for (var j = 0; j < 4; j++) {
                 merged[i][j] = false;
             }
         }
-    
-        for (var i = startI; i !== endI; i += stepI) {
-            for (var j = startJ; j !== endJ; j += stepJ) {
+
+        for (var i = startI; i !== endI && i >= 0 && i < 4; i += stepI) {
+            for (var j = startJ; j !== endJ && j >= 0 && j < 4; j += stepJ) {
                 if (this.grid[i][j] !== 0) {
                     var x = i;
                     var y = j;
-    
+
                     // Move the tile as far as possible
                     while (x >= 0 && x < 4 && y >= 0 && y < 4) {
                         var nextX = x + dx;
                         var nextY = y + dy;
-    
+
                         if (nextX < 0 || nextX > 3 || nextY < 0 || nextY > 3 || this.grid[nextX][nextY] !== 0) {
                             break;
                         }
-    
+
                         x = nextX;
                         y = nextY;
                     }
-    
+
                     // Merge the tile with another tile of the same value
                     var nextX = x + dx;
                     var nextY = y + dy;
-    
+
                     if (nextX >= 0 && nextX <= 3 && nextY >= 0 && nextY <= 3 && this.grid[nextX][nextY] === this.grid[i][j] && !merged[nextX][nextY]) {
                         this.grid[nextX][nextY] *= 2;
                         this.grid[i][j] = 0;
@@ -245,7 +242,7 @@ var Game = new Phaser.Class({
                 }
             }
         }
-    
+
         if (moved) {
             this.addNumber();
             this.drawGrid();
@@ -283,8 +280,8 @@ var Game = new Phaser.Class({
 
 var config = {
     type: Phaser.AUTO,
-    width: 800, // Adjust as needed
-    height: 800, // Adjust as needed
+    width: 640, // 4 * 150 (size) + 3 * 10 (padding)
+    height: 640, // 4 * 150 (size) + 3 * 10 (padding)
     scene: [ MainMenu, Game, GameOver ]
 };
 
